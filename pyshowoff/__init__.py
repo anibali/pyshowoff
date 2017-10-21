@@ -1,28 +1,8 @@
 import requests
 import json
-from concurrent.futures import Future
 from requests_futures.sessions import FuturesSession
 
-
-def then(future: Future, fn):
-    next_future = Future()
-
-    def callback(prev_future: Future):
-        if prev_future.cancelled() or not prev_future.done():
-            next_future.cancel()
-            return
-
-        if prev_future.exception() is not None:
-            next_future.set_exception(prev_future.exception())
-            return
-
-        try:
-            next_future.set_result(fn(prev_future.result()))
-        except BaseException as ex:
-            next_future.set_exception(ex)
-
-    future.add_done_callback(callback)
-    return next_future
+from .promise import Promise
 
 
 class Client:
@@ -40,11 +20,7 @@ class Client:
         if data is not None:
             data = json.dumps(data)
         res = self.session.request(method, self.base_url + path, data=data)
-        if not isinstance(res, Future):
-            future = Future()
-            future.set_result(res)
-            res = future
-        return res
+        return Promise.resolve(res)
 
     def add_notebook(self, title):
         data = {
@@ -53,8 +29,8 @@ class Client:
                 'attributes': {'title': title},
             },
         }
-        future = self.request('post', '/api/v2/notebooks', data)
-        return then(future, lambda res: Notebook(self, res.json()['data']['id']))
+        promise = self.request('post', '/api/v2/notebooks', data)
+        return promise.then(lambda res: Notebook(self, res.json()['data']['id']))
 
 
 class Notebook:
@@ -74,8 +50,8 @@ class Notebook:
                 },
             },
         }
-        future = self.client.request('post', '/api/v2/tags', data)
-        return then(future, lambda res: Tag(self, res.json()['data']['id']))
+        promise = self.client.request('post', '/api/v2/tags', data)
+        return promise.then(lambda res: Tag(self, res.json()['data']['id']))
 
     def add_frame(self, title, bounds=None):
         data = {
@@ -91,8 +67,8 @@ class Notebook:
         }
         if bounds is not None:
             data['data']['attributes'].update(bounds)
-        future = self.client.request('post', '/api/v2/frames', data)
-        return then(future, lambda res: Frame(self, res.json()['data']['id']))
+        promise = self.client.request('post', '/api/v2/frames', data)
+        return promise.then(lambda res: Frame(self, res.json()['data']['id']))
 
 
 class Tag:
