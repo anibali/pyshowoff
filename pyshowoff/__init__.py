@@ -1,42 +1,60 @@
 import requests
 import json
-from threading import Thread
+from concurrent.futures import Future
+from requests_futures.sessions import FuturesSession
+
+
+def then(future: Future, fn):
+    next_future = Future()
+
+    def callback(prev_future: Future):
+        if prev_future.cancelled() or not prev_future.done():
+            next_future.cancel()
+            return
+
+        if prev_future.exception() is not None:
+            next_future.set_exception(prev_future.exception())
+            return
+
+        try:
+            next_future.set_result(fn(prev_future.result()))
+        except BaseException as ex:
+            next_future.set_exception(ex)
+
+    future.add_done_callback(callback)
+    return next_future
 
 
 class Client:
-    def __init__(self, netloc, always_sync=False):
+    def __init__(self, netloc, disable_async=False):
         self.base_url = 'http://' + netloc
-        self.session = requests.Session()
+        if disable_async:
+            self.session = requests.Session()
+        else:
+            self.session = FuturesSession()
         self.session.headers.update({
             'content-type': 'application/json'
         })
-        self.always_sync = always_sync
 
     def request(self, method, path, data=None):
         if data is not None:
             data = json.dumps(data)
-        req = requests.Request(method, self.base_url + path, data=data)
-        prepped = self.session.prepare_request(req)
-        r = self.session.send(prepped)
-        return r.json()
+        res = self.session.request(method, self.base_url + path, data=data)
+        if not isinstance(res, Future):
+            future = Future()
+            future.set_result(res)
+            res = future
+        return res
 
-    def async_request(self, method, path, data=None):
-        if self.always_sync:
-            self.request(method, path, data)
-        else:
-            def do_request():
-                self.request(method, path, data)
-            Thread(target=do_request, daemon=False).start()
-
-    def new_notebook(self, title):
+    def add_notebook(self, title):
         data = {
             'data': {
                 'type': 'notebooks',
                 'attributes': {'title': title},
             },
         }
-        res = self.request('post', '/api/v2/notebooks', data)
-        return Notebook(self, res['data']['id'])
+        future = self.request('post', '/api/v2/notebooks', data)
+        return then(future, lambda res: Notebook(self, res.json()['data']['id']))
 
 
 class Notebook:
@@ -44,7 +62,7 @@ class Notebook:
         self.client = client
         self.id = notebook_id
 
-    def new_tag(self, name):
+    def add_tag(self, name):
         data = {
             'data': {
                 'type': 'tags',
@@ -56,10 +74,10 @@ class Notebook:
                 },
             },
         }
-        res = self.client.request('post', '/api/v2/tags', data)
-        return Tag(self.client, res['data']['id'])
+        future = self.client.request('post', '/api/v2/tags', data)
+        return then(future, lambda res: Tag(self, res.json()['data']['id']))
 
-    def new_frame(self, title, bounds=None):
+    def add_frame(self, title, bounds=None):
         data = {
             'data': {
                 'type': 'frames',
@@ -73,8 +91,8 @@ class Notebook:
         }
         if bounds is not None:
             data['data']['attributes'].update(bounds)
-        res = self.client.request('post', '/api/v2/frames', data)
-        return Frame(self.client, res['data']['id'])
+        future = self.client.request('post', '/api/v2/frames', data)
+        return then(future, lambda res: Frame(self, res.json()['data']['id']))
 
 
 class Tag:
@@ -88,28 +106,28 @@ class Frame:
         self.client = client
         self.id = frame_id
 
-    def set_title(self, title):
+    def update(self, title=None, type=None, content_body=None):
+        attrs = {}
+        if title is not None:
+            attrs['title'] = title
+        if type is not None:
+            attrs['type'] = type
+        if content_body is not None:
+            attrs['content'] = {'body': content_body}
         data = {
             'data': {
                 'id': self.id,
                 'type': 'frames',
-                'attributes': {'title': title},
+                'attributes': attrs,
             },
         }
         self.client.request('patch', '/api/v2/frames/' + self.id, data)
 
-    def set_content(self, content_type, content_body):
-        data = {
-            'data': {
-                'id': self.id,
-                'type': 'frames',
-                'attributes': {
-                    'type': content_type,
-                    'content': {'body': content_body},
-                },
-            },
-        }
-        self.client.async_request('patch', '/api/v2/frames/' + self.id, data)
+    def set_title(self, title):
+        self.update(title=title)
+
+    def set_content(self, type, content_body):
+        self.update(type=type, content_body=content_body)
 
     def vega(self, spec):
         self.set_content('vega', spec)

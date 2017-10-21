@@ -10,6 +10,7 @@ setup(
     test_suite='tests',
     install_requires=[
         'requests',
+        'requests-futures',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
