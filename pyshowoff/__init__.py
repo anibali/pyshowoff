@@ -6,8 +6,8 @@ from .promise import Promise
 
 
 class Client:
-    def __init__(self, netloc, disable_async=False):
-        self.base_url = 'http://' + netloc
+    def __init__(self, base_url, disable_async=False):
+        self.base_url = base_url
         if disable_async:
             self.session = requests.Session()
         else:
