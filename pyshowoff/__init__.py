@@ -38,6 +38,40 @@ class Notebook:
         self.client = client
         self.id = notebook_id
 
+    def update(self, title=None, pinned=None, progress=None):
+        """Updates the attributes of this notebook.
+
+        Args:
+            title (str): Notebook title
+            pinned (bool): Set to True to protect notebook against deletion
+            progress (float): Notebook progress (from 0.0 to 1.0)
+        """
+
+        attrs = {}
+        if title is not None:
+            attrs['title'] = title
+        if pinned is not None:
+            attrs['pinned'] = pinned
+        if progress is not None:
+            attrs['progress'] = progress
+        data = {
+            'data': {
+                'id': self.id,
+                'type': 'notebooks',
+                'attributes': attrs,
+            },
+        }
+        self.client.request('patch', '/api/v2/notebooks/' + self.id, data)
+
+    def set_title(self, title):
+        self.update(title=title)
+
+    def set_pinned(self, pinned):
+        self.update(pinned=pinned)
+
+    def set_progress(self, progress):
+        self.update(progress=progress)
+
     def add_tag(self, name):
         data = {
             'data': {
