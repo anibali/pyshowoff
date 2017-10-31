@@ -102,7 +102,7 @@ class Notebook:
         if bounds is not None:
             data['data']['attributes'].update(bounds)
         promise = self.client.request('post', '/api/v2/frames', data)
-        return promise.then(lambda res: Frame(self, res.json()['data']['id']))
+        return promise.then(lambda res: Frame(self.client, res.json()['data']['id']))
 
 
 class Tag:

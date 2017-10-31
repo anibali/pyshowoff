@@ -3,7 +3,7 @@ from unittest.mock import patch
 import httpretty
 import json
 
-from pyshowoff import Client
+from pyshowoff import Client, Notebook
 
 
 class TestClient(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestClient(unittest.TestCase):
         res_body = {
             'data': {
                 'type': 'notebooks',
-                'id': 42,
+                'id': '42',
                 'attributes': {'title': 'New notebook'}
             }
         }
@@ -51,4 +51,26 @@ class TestClient(unittest.TestCase):
                 'attributes': {'title': 'New notebook'}
             }
         })
-        self.assertEqual(notebook.id, 42)
+        self.assertEqual(notebook.id, '42')
+
+
+class TestNotebook(unittest.TestCase):
+    @httpretty.activate
+    def test_add_frame(self):
+        res_body = {
+            'data': {
+                'type': 'frames',
+                'id': '12',
+                'attributes': {'title': 'New frame'}
+            }
+        }
+        httpretty.register_uri(httpretty.POST, "http://hostname:616/api/v2/frames",
+                               body=json.dumps(res_body),
+                               content_type="application/json")
+
+        client = Client('http://hostname:616')
+        notebook = Notebook(client, '42')
+
+        frame = notebook.add_frame('New frame').result()
+        self.assertEqual(frame.id, '12')
+        self.assertEqual(frame.client, client)
