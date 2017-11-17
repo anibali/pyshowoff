@@ -1,4 +1,5 @@
 import requests
+from requests.auth import HTTPBasicAuth
 import json
 from requests_futures.sessions import FuturesSession
 
@@ -6,12 +7,19 @@ from .promise import Promise
 
 
 class Client:
-    def __init__(self, base_url, disable_async=False):
+    def __init__(self, base_url, api_key_id=None, api_key_secret=None, disable_async=False):
         self.base_url = base_url
+
+        if api_key_id is not None:
+            self.auth = HTTPBasicAuth(api_key_id, api_key_secret)
+        else:
+            self.auth = None
+
         if disable_async:
             self.session = requests.Session()
         else:
             self.session = FuturesSession()
+
         self.session.headers.update({
             'content-type': 'application/json'
         })
@@ -19,7 +27,7 @@ class Client:
     def request(self, method, path, data=None):
         if data is not None:
             data = json.dumps(data)
-        res = self.session.request(method, self.base_url + path, data=data)
+        res = self.session.request(method, self.base_url + path, data=data, auth=self.auth)
         return Promise.resolve(res)
 
     def add_notebook(self, title):
