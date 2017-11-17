@@ -28,7 +28,10 @@ class Client:
         if data is not None:
             data = json.dumps(data)
         res = self.session.request(method, self.base_url + path, data=data, auth=self.auth)
-        return Promise.resolve(res)
+        def raise_on_error_response(res):
+            res.raise_for_status()
+            return res
+        return Promise.resolve(res).then(raise_on_error_response)
 
     def add_notebook(self, title):
         data = {
