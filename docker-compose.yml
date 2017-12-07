@@ -7,3 +7,4 @@ services:
       - ~/.pypirc:/home/user/.pypirc:ro
     environment:
       - PYTHONIOENCODING=utf_8
+    network_mode: host

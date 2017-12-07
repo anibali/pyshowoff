@@ -42,5 +42,9 @@ ENV PATH=/home/user/miniconda/envs/py36/bin:$PATH \
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+# Install PyShowoff in dev mode
+COPY . /app
+RUN pip install -e .
+
 # Set the default command to python3
 CMD ["python3"]
