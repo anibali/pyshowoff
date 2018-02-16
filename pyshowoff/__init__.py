@@ -127,14 +127,14 @@ class Frame:
         self.client = client
         self.id = frame_id
 
-    def update(self, title=None, type=None, content_body=None):
+    def update(self, title=None, type=None, content=None):
         attrs = {}
         if title is not None:
             attrs['title'] = title
         if type is not None:
             attrs['type'] = type
-        if content_body is not None:
-            attrs['content'] = {'body': content_body}
+        if content is not None:
+            attrs['content'] = content
         data = {
             'data': {
                 'id': self.id,
@@ -147,20 +147,23 @@ class Frame:
     def set_title(self, title):
         self.update(title=title)
 
-    def set_content(self, type, content_body):
-        self.update(type=type, content_body=content_body)
+    def set_content(self, type, content):
+        self.update(type=type, content=content)
 
     def vega(self, spec):
-        self.set_content('vega', spec)
+        self.set_content('vega', {'body': spec})
 
     def vegalite(self, spec):
-        self.set_content('vegalite', spec)
+        self.set_content('vegalite', {'body': spec})
+
+    def plotly(self, fig):
+        self.set_content('plotly', fig)
 
     def text(self, message):
-        self.set_content('text', message)
+        self.set_content('text', {'body': message})
 
     def html(self, html):
-        self.set_content('html', html)
+        self.set_content('html', {'body': html})
 
     def progress(self, current_value, max_value):
         percentage = min(100 * current_value / max_value, 100)

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyshowoff',
-    version='0.1.0a1',
+    version='0.1.0a2',
     author='Aiden Nibali',
     description='Python client for the Showoff web display',
     license='Apache Software License 2.0',
